@@ -3,9 +3,7 @@ from dotenv import load_dotenv
 load_dotenv()
 import streamlit as st
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_openai import OpenAIEmbeddings
 from langchain_huggingface.embeddings import HuggingFaceEmbeddings
-from langchain_community.vectorstores import DocArrayInMemorySearch
 from langchain_chroma import Chroma
 
 
@@ -33,7 +31,7 @@ def configure_retriever(_docs):
         vectordb = Chroma.from_documents(splits, embedding_function, persist_directory=os.getenv('CHROMADB_PATH'))
 
     else: 
-         vectordb = Chroma.from_documents(splits, embedding_function)
+        vectordb = Chroma.from_documents(splits, embedding_function)
 
     # Define retriever
     retriever = vectordb.as_retriever(search_type="mmr", search_kwargs={"k": 2, "fetch_k": 4})

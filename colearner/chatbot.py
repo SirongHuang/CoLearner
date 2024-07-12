@@ -110,8 +110,6 @@ if __name__ == "__main__":
         
         response = final_chain.stream({'input':user_query}, config={"configurable": {"session_id": 'any'}})
             
-        
-                
         with st.chat_message("assistant"):
             st.write_stream(chatbot.streaming_output(response))
                         
