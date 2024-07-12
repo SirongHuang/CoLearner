@@ -162,6 +162,13 @@ cython_debug/
 #.idea/
 
 # custom project gitignore file
-.setup_steps.txt
+.dockerignore
+Dockerfile
+docker-compose-dev.yaml
+setup_steps.txt
+requirements.txt
 .archive/
 data/
+mlruns/
+memory.db
+notebooks/scrapbook.ipynb
