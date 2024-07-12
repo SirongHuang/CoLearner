@@ -21,6 +21,7 @@ class Context_with_History_Chatbot:
         self.llm = ChatOpenAI(model=model, temperature=0)
         self.relevant_context = None 
         self.msgs = StreamlitChatMessageHistory("chat_history")   # streamlit chat message history 
+        self.avatars = {"human":"🤯", "ai":"🤖"}
         self.display_Streamlit_chat_history()
 
     def display_Streamlit_chat_history(self):
@@ -28,7 +29,7 @@ class Context_with_History_Chatbot:
             self.msgs.add_ai_message("How can I help you?")
             
         for msg in self.msgs.messages:
-            st.chat_message(msg.type).write(msg.content)
+            st.chat_message(msg.type, avatar=self.avatars[msg.type]).write(msg.content)
         
     def get_qa_chain(self, retriever):
         """ Get the question answering chain with chat history and context docs """
@@ -88,36 +89,3 @@ class Context_with_History_Chatbot:
                 yield text + " "
             i += 1
             
-if __name__ == "__main__":
- 
-    st.set_page_config(page_title="CoLearner: Chat with your documents", page_icon="🦜")
-    st.title("🦜 CoLearner: Chat with your documents")
-
-    debug = True
-
-    pdfs = [Document(page_content="My mom's name is Qiu", metadata={"source": "https://mom.com"}),
-            Document(page_content="My dad's name is Jun", metadata={"source": "https://dad.com"}),
-            Document(page_content="My dog's name is Chong", metadata={"source": "https://dog.com"})]
-
-    retriever = configure_retriever(pdfs)
-
-    chatbot = Context_with_History_Chatbot()
-    final_chain = chatbot.get_qa_chain(retriever)
-
-
-    if user_query := st.chat_input(placeholder="Ask me anything!"):
-        st.chat_message("user").write(user_query)
-        
-        response = final_chain.stream({'input':user_query}, config={"configurable": {"session_id": 'any'}})
-            
-        with st.chat_message("assistant"):
-            st.write_stream(chatbot.streaming_output(response))
-                        
-        if debug:
-            print("##############################################################################################")
-            print("=======    Context   =======", '\n')
-            print(chatbot.relevant_context,'\n')
-            print("======= Chat History =======",'\n')
-            for message in chatbot.msgs.messages:
-                print(message.content)  #Fix: not sure why there is a double printing behavior here... 
-            print("##############################################################################################")

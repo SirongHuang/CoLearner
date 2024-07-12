@@ -1,0 +1,9 @@
+[client]
+showErrorDetails = true
+
+[theme]
+primaryColor = "#FF9AA2"  # Soft pink
+backgroundColor = "#FFFFFF"  # White
+secondaryBackgroundColor = "#FFDAC1"  # Soft peach
+textColor = "#2F3E46"  # Dark teal
+font = "sans serif"
