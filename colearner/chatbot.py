@@ -1,26 +1,20 @@
 import streamlit as st
-from colearner.rag import configure_retriever
-
 from langchain_openai import ChatOpenAI
-
-from langchain_core.documents import Document   
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-
 from langchain.chains import create_history_aware_retriever, create_retrieval_chain
 from langchain.chains.combine_documents import create_stuff_documents_chain
-
-from langchain_core.chat_history import BaseChatMessageHistory
-from langchain_community.chat_message_histories import ChatMessageHistory, StreamlitChatMessageHistory 
+from langchain_community.chat_message_histories import StreamlitChatMessageHistory 
 from langchain_core.runnables.history import RunnableWithMessageHistory
 
 
 class Context_with_History_Chatbot:
     """ Streamlit Chatbot with context and history-awareness """
-    
+
     def __init__(self, model = "gpt-3.5-turbo" ):
-        self.llm = ChatOpenAI(model=model, temperature=0)
+        self.llm = ChatOpenAI(model=model, temperature=0) 
         self.relevant_context = None 
-        self.msgs = StreamlitChatMessageHistory("chat_history")   # streamlit chat message history 
+        # streamlit chat message history
+        self.msgs = StreamlitChatMessageHistory("chat_history")    
         self.avatars = {"human":"🤯", "ai":"🤖"}
         self.display_Streamlit_chat_history()
 
@@ -30,7 +24,7 @@ class Context_with_History_Chatbot:
             
         for msg in self.msgs.messages:
             st.chat_message(msg.type, avatar=self.avatars[msg.type]).write(msg.content)
-        
+       
     def get_qa_chain(self, retriever):
         """ Get the question answering chain with chat history and context docs """
 
