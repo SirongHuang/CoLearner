@@ -12,7 +12,7 @@ import streamlit as st
 
 debug = True
 if debug:
-    print("~~~~~~~~~~~~~~~~~~~~~~~~~~~NEW RUN~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+    print("~~~~~~~~~~~~~~~~~~~~~~~~~~~NEW RUN~~~~~~~~~~~~~~~~~~~~~~~~~~~", '\n')
 
 ##### Create local PDF file dir ##### 
 save_file_dir = os.getenv('DATA_FOLDER_PATH') + "uploaded_files/pdf/"
@@ -29,46 +29,45 @@ with open("style.css") as f:
 uploaded_files = st.sidebar.file_uploader(label='Upload PDF files', type=['pdf'], accept_multiple_files=True)                                                                # stop running the rest of the script if no files are uploaded
 
 ##### Setup session states #####
-if 'uploaded_file_hashes' not in st.session_state:                            # initiate a session state variable for storing hashes of uploaded files
-    st.session_state.uploaded_file_hashes = []
-                                                  
 if "retriever" not in st.session_state:                                       # initiate a session state variable for storing the retriever
-    st.session_state.retriever = configure_retriever(update=False)            # initiate the retriever for the first time
     if debug:
         print("=======   Retriever configured for the first time   =======", '\n')
+        
+    st.session_state.retriever = configure_retriever(update=False)            # initiate the retriever for the first time
 
 ##### Check for duplicates and save to disk #####    
 if uploaded_files:                                                            # when files are uploaded (also when the page is refreshed and there are uploaded files)                                            
     new_file_hash = get_file_hash(uploaded_files[-1])                         # get the hash of the last uploaded file
 
-    if new_file_hash in st.session_state.uploaded_file_hashes:                # --> duplicated upload (avoids re-processing due to duplicated uploads or app refreshes)           
-        pass                                                         
-    else:                                                                     # --> new upload                                                                  
-        st.session_state.uploaded_file_hashes.append(new_file_hash)           # add the new file hash to session state variable
-        
+    vectorDB_doc_ids = st.session_state.retriever.vectorstore.get()['ids']
+    vectorDB_doc_unique_ids = set([id.split('-')[0] for id in vectorDB_doc_ids])  # get unique doc ids from the vectorDB
+    
+    if new_file_hash in vectorDB_doc_unique_ids:                                                     # --> check for duplicated upload against VectorDB         
+        print("Duplicated upload detected. Skipping the processing.",'\n')         # (this avoids re-processing due to duplicated uploads or app refreshes)
+    else:                                   
+        print("Uploaded file not in VectorDB. Processing...",'\n')                 # --> new upload     
         file_path = save_file_dir + uploaded_files[-1].name
         save_file(uploaded_files[-1], file_path)                              # save the file locally
 
         new_pdf_doc = load_pdf(file_path)                                     # load the new PDF as langchain document    
         
         if debug == True:
-            print("=======    id: hashes (should be list of hashes)  =======", '\n')
-            print([new_file_hash])
-            print("=======    docs (should be list of docs)  =======", '\n')
-            print(new_pdf_doc)                                  
+            print("=======    id: new file's hash   =======")
+            print(new_file_hash,'\n')
+            print("=======    docs (list of docs)   =======")
+            print("Total number of documents in the PDF: ", len(new_pdf_doc))
+            print(new_pdf_doc[0], '\n')
+                                                    
         
-        st.session_state.retriever = configure_retriever(                     # update the ChromaDB and retriever with the new PDF
-                                            hashes = [new_file_hash],                 
-                                            docs = new_pdf_doc, 
-                                            update=True)
-        
-    if debug == True:
-        print("=======    Uploaded_files   =======", '\n')
-        print(uploaded_files)
-        print("=======    Embeddings in VectorDB   =======", '\n')
-        print(st.session_state.retriever.vectorstore.get())
-        print("=======    Session states   =======", '\n')
-        print(st.session_state)    
+        try:
+            st.session_state.retriever = configure_retriever(                 # update the ChromaDB and retriever with the new PDF
+                                                doc_hash = new_file_hash,                 
+                                                docs = new_pdf_doc, 
+                                                update=True)
+        except Exception as e:
+            print("Error occurred when updating the retriever with the new PDF.")
+            print(e)
+            
         
 ##### Create Chatbot #####    
 chatbot = Context_with_History_Chatbot(model = "gpt-3.5-turbo")
