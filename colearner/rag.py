@@ -1,4 +1,5 @@
 import os
+from re import split
 import streamlit as st
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_huggingface.embeddings import HuggingFaceEmbeddings
@@ -10,7 +11,7 @@ import time
 
 @runtime
 @st.spinner("Processing data for your Chatbot...")
-def configure_retriever(docs:list = [], hashes:list = [], update:bool = False):
+def configure_retriever(docs:list = [], doc_hash:str = "", update:bool = False):
     """
     Configure retriever for RAG model. Split documents, create embeddings and store in vectordb, and define retriever.
     - Splitter: RecursiveCharacterTextSplitter
@@ -20,24 +21,24 @@ def configure_retriever(docs:list = [], hashes:list = [], update:bool = False):
     ---------------------------------------------------
     - Input: 
         - _docs: list of documents
-        - hashes: list of hashes of the documents used as unique ids
+        - doc_hash: hash string the documents used as unique id
         - update (default=True): if True, create or update the vectordb with new documents, otherwise load the existing vectordb. 
     - Output: retriever object
     """
     # Define the chromaDB client
-    start_time = time.time()
     
+    print("======= Configuring vectorDB =======")
+    
+    start_time = time.time()
     embedding_function = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
     elapsed_time = time.time() - start_time
     print(f"Elapsed time for embedding_function: {elapsed_time} seconds")
     
     start_time = time.time()
-    
     persistent_client = chromadb.PersistentClient(path=os.getenv('CHROMADB_PATH'))
     elapsed_time = time.time() - start_time
     print(f"Elapsed time for persistent_client: {elapsed_time} seconds")
     
-    start_time = time.time()
     
     vectordb = Chroma(
         client=persistent_client,
@@ -45,25 +46,22 @@ def configure_retriever(docs:list = [], hashes:list = [], update:bool = False):
         embedding_function=embedding_function,
     )
     
-    elapsed_time = time.time() - start_time
-    print(f"Elapsed time for creating vectordb: {elapsed_time} seconds")
-    
     if update:
-        start_time = time.time()
         
+        start_time = time.time()
         text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
         splits = text_splitter.split_documents(docs)
-        
         elapsed_time = time.time() - start_time
-        print(f"Elapsed time for creating text splittings: {elapsed_time} seconds")
+        print("Text splitting done! Total splits:", len(splits))
+        print(f"Elapsed time for splitting texts: {elapsed_time} seconds")
+        
+        hashes = [doc_hash+"-"+str(i) for i in range(len(splits))] # create unique ids for each split with common doc_hash
+        assert len(hashes) == len(splits), "Hashes and splits length mismatch!"
         
         start_time = time.time()
-        vectordb.add_documents(ids=hashes, documents=docs)
+        vectordb.add_documents(ids=hashes, documents=splits)
+        print(f"Elapsed time for adding docs to VectorDB: {elapsed_time} seconds")
         
-        elapsed_time = time.time() - start_time
-        print(f"Elapsed time for adding documents to vectordb: {elapsed_time} seconds")
-    
-    
     retriever = vectordb.as_retriever(search_type="mmr", search_kwargs={"k": 2, "fetch_k": 4})
     
     print("Retriever configured successfully!")
