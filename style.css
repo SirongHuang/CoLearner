@@ -1,20 +1,74 @@
-.stButton>button {
-    display: inline-block;
-    padding: 10px 20px;
+/* .stButton>button {
+    display: block;
+    padding: 5px 2px;
     font-size: 16px;
     font-weight: bold;
-    color: white;
-    background-color: #FFDAC1; /* Green */
+    color: rgb(62, 62, 62);
+    background-color: white;
     border: none;
-    border-radius: 12px;
+    border-radius: 8px;
     text-align: center;
     text-decoration: none;
-    transition-duration: 0.4s;
+    transition-duration: 0.0s;
     cursor: pointer;
 }
 
 .stButton:hover>button:hover {
     background-color: white;
-    color: black;
-    border: 2px solid #4CAF50;
+    color: rgb(114, 101, 101);
+    border: 1px solid #884b4b;
+} */
+
+/* background-color: #FFDAC1; */
+
+
+.stButton > button {
+    width: 100%;
+    border: none;
+    background-color: #c9c6ba;
+    color: rgb(62, 62, 62);
+    padding: 8px 16px;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 13px;
+    margin: 4px 2px;
+    transition-duration: 0.4s;
+    cursor: pointer;
+    border-radius: 8px;
+}
+.stButton:hover>button:hover {
+    background-color: #c9c6ba;
+    color: rgb(114, 101, 101);
+    border: 1px solid #884b4b;
+}
+
+.delete-button {
+    background-color: rgba(255, 154, 162, 0);
+    color: rgb(89, 89, 89);
+    border: none;
+    padding: 5px 10px;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 13px;
+    margin: 2px 1px;
+    cursor: pointer;
+    border-radius: 20px;
+}
+
+.delete-button:hover {
+    background-color: rgba(201, 198, 186, 0);
+    color: rgb(182, 60, 60);
+    border: 0px solid #884b4b;
+}
+
+.delete-button:actve {
+    background-color: rgba(201, 198, 186, 0);
+    color: rgb(182, 60, 60);
+    border: 0px solid #884b4b;
+}
+
+.delete-button:focus {
+    outline: none;
 }
