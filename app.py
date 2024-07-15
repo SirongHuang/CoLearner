@@ -14,9 +14,11 @@ debug = True
 if debug:
     print("~~~~~~~~~~~~~~~~~~~~~~~~~~~NEW RUN~~~~~~~~~~~~~~~~~~~~~~~~~~~", '\n')
 
+
 ##### Create save_dir ##### 
 save_file_dir = os.getenv('DATA_FOLDER_PATH') + "uploaded_files/pdf/"
 create_folder(save_file_dir)    
+
 
 ##### UI: basic setup ##### 
 st.set_page_config(page_title="CoLearner: Chat with your documents", page_icon="🧙")
@@ -25,8 +27,10 @@ st.header("🧙 CoLearner: Chat with your documents")
 with open("style.css") as f:
     st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
+
 ##### UI: User uploading PDFs ##### 
 uploaded_files = st.sidebar.file_uploader(label='Upload PDF files', type=['pdf'], accept_multiple_files=True)                                                                # stop running the rest of the script if no files are uploaded
+
 
 ##### Setup session states #####
 if "retriever" not in st.session_state:                                          
@@ -36,6 +40,8 @@ if "retriever" not in st.session_state:
 if "unique_doc_ids" not in st.session_state:                                     
     st.session_state.unique_doc_ids = list(set([id.split('-')[0] for id in st.session_state.retriever.vectorstore.get()['ids']]))
 
+if 'checkboxes' not in st.session_state:
+    st.session_state.checkboxes = [True] * len(st.session_state.unique_doc_ids)
 
 ##### UI: create checkbox for managing docs in vectorDB #####
 vectorDB_doc_names = [st.session_state.retriever.vectorstore.get(id+'-0')['metadatas'][0]['source'].split('/')[-1] 
@@ -44,10 +50,19 @@ vectorDB_doc_names = [st.session_state.retriever.vectorstore.get(id+'-0')['metad
 expand = st.sidebar.expander("Manage Documents",                            
                                 icon=":material/folder_open:") 
 expand.write("Select the documents you want to chat with.")
+    
+col1, col2 = expand.columns(2)
+if col1.button('Deselect all'):                                                           # Creates a button to deselect all checkboxes
+    st.session_state.checkboxes = [False] * len(st.session_state.checkboxes)
+if col2.button('Select all'):                                                             # Creates a button to select all checkboxes
+    st.session_state.checkboxes = [True] * len(st.session_state.checkboxes)
 
-for id, doc_name in zip(st.session_state.unique_doc_ids,vectorDB_doc_names):
-    expand.checkbox(key=id, label=doc_name, value=True)
-
+for i, (id, doc_name) in enumerate(zip(st.session_state.unique_doc_ids,vectorDB_doc_names)):    # Creates a checkbox for each document     
+    expand.checkbox(key=id,                                                               
+                    label=doc_name, 
+                    value=st.session_state.checkboxes[i],
+                    on_change=lambda value, i=i: st.session_state.checkboxes.__setitem__(i, not st.session_state.checkboxes[i]),
+                    args=(i,))
 
 ##### If a new file is uploaded, or when app refreshes + uploaded file exists: #####    
 if uploaded_files:                                                               #TODO: this part requires testing to make sure it's not running unnecessarily or should run when needed                                  
@@ -85,9 +100,11 @@ if uploaded_files:                                                              
                                                                                     
         expand.checkbox(key=new_file_hash, label=doc_name, value=True)              # 5. update the app UI to include the new doc in vecotorDB
         
+        
 ##### Create Chatbot #####    
 chatbot = Context_with_History_Chatbot(model = "gpt-3.5-turbo")
 final_chain = chatbot.get_qa_chain(st.session_state.retriever)
+
 
 ##### Chat interface #####
 if user_query := st.chat_input(placeholder="Ask me anything!"):
@@ -106,6 +123,3 @@ if user_query := st.chat_input(placeholder="Ask me anything!"):
         for message in chatbot.msgs.messages:
             print(message.content)  
         print("##############################################################################################")
-
-# if st.button('Reset vector database'):
-#     pass
