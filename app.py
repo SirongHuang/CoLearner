@@ -33,7 +33,7 @@ with open("style.css") as f:
 # ---------------------- session states ----------------------
 
 if "retriever" not in st.session_state:                                          
-    print("=======   Retriever configured for the first time   =======", '\n') 
+    print("=======   Retriever configured after restarting app   =======", '\n') 
     st.session_state.retriever = configure_retriever(update=False)              
            
 # raw doc ids from the vectorstore, e.g., 'hash-0', 'hash-1', 'hash-2'                          
@@ -102,26 +102,26 @@ def delete_document(delete_index):
 
 checkbox_col1, checkbox_col2 = expand.columns([5,1])  
 
-for i, (id, doc_name) in enumerate(zip(st.session_state.doc_ids, st.session_state.doc_names)):           # Creates a checkbox for each document   
-    
+# Loop through all the documents in the vectorDB and create a checkbox for each
+for i, (id, doc_name) in enumerate(zip(st.session_state.doc_ids, st.session_state.doc_names)):           
     print(i, id, doc_name, st.session_state.doc_ids[i], st.session_state.doc_names[i], st.session_state.checkboxes[i])
     checkbox_col1.checkbox(key=id,                                                               
                     label=doc_name, 
                     value=st.session_state.checkboxes[i])
-                    
-    if checkbox_col2.button("✖", key=f"delete_{i}"):                                                     # Creates a delete button for each document                                                  
+
+    # create a delete button for each checkbox
+    if checkbox_col2.button("✖", key=f"delete_{i}"):                                                                                                       
         delete_document(i)
-        st.experimental_rerun()    
+        st.rerun()    
 
-
+        
 # ------------------------------------------------------------
 #
 #               New Uploaded File Processing
 #
 # ------------------------------------------------------------       
 
-# If a new file is uploaded, or when app refreshes + uploaded file exists  
-if uploaded_files:                                                               #TODO: this part requires testing to make sure it's not running unnecessarily or should run when needed                                  
+if uploaded_files:                                                                                               
     
     save_file_dir = os.getenv('DATA_FOLDER_PATH') + "uploaded_files/pdf/"
     create_folder(save_file_dir)  
@@ -131,7 +131,6 @@ if uploaded_files:                                                              
     
     if new_file_hash in st.session_state.doc_ids:                                # For duplicated file, checked against VectorDB         
         print("Duplicated upload detected. Skipping the processing.",'\n')           # skip all processing 
-        #uploaded_files = []
     
     else:                                   
         print("Uploaded file not in VectorDB. Processing...",'\n')               # For non-duplicated new file, process it as follows:    
