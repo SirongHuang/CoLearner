@@ -37,38 +37,53 @@ if "retriever" not in st.session_state:
     print("=======   Retriever configured for the first time   =======", '\n') 
     st.session_state.retriever = configure_retriever(update=False)              
 
-if "unique_doc_ids" not in st.session_state:                                     
-    st.session_state.unique_doc_ids = list(set([id.split('-')[0] for id in st.session_state.retriever.vectorstore.get()['ids']]))
+if "doc_ids" not in st.session_state:                                     
+    st.session_state.doc_ids = list(set([id.split('-')[0] for id in st.session_state.retriever.vectorstore.get()['ids']]))
+    
+if "doc_names" not in st.session_state:                                     
+    st.session_state.doc_names = [st.session_state.retriever.vectorstore.get(id+'-0')['metadatas'][0]['source'].split('/')[-1] 
+                                    for id in st.session_state.doc_ids]
 
 if 'checkboxes' not in st.session_state:
-    st.session_state.checkboxes = [True] * len(st.session_state.unique_doc_ids)
+    st.session_state.checkboxes = [True] * len(st.session_state.doc_ids)
 
-##### UI: create checkbox for managing docs in vectorDB #####
-vectorDB_doc_names = [st.session_state.retriever.vectorstore.get(id+'-0')['metadatas'][0]['source'].split('/')[-1] 
-                             for id in st.session_state.unique_doc_ids]
-                                                                                    
+##### UI: create checkbox for managing docs in vectorDB #####                                                                   
 expand = st.sidebar.expander("Manage Documents",                            
                                 icon=":material/folder_open:") 
 expand.write("Select the documents you want to chat with.")
     
 col1, col2 = expand.columns(2)
-if col1.button('Deselect all'):                                                           # Creates a button to deselect all checkboxes
+if col1.button('Deselect all'):                                                                  # Creates a button to deselect all checkboxes
     st.session_state.checkboxes = [False] * len(st.session_state.checkboxes)
-if col2.button('Select all'):                                                             # Creates a button to select all checkboxes
+if col2.button('Select all'):                                                                    # Creates a button to select all checkboxes
     st.session_state.checkboxes = [True] * len(st.session_state.checkboxes)
 
-for i, (id, doc_name) in enumerate(zip(st.session_state.unique_doc_ids,vectorDB_doc_names)):    # Creates a checkbox for each document     
-    expand.checkbox(key=id,                                                               
+print(st.session_state.doc_ids, st.session_state.doc_names, st.session_state.checkboxes)
+
+for i, (id, doc_name) in enumerate(zip(st.session_state.doc_ids, st.session_state.doc_names)):    # Creates a checkbox for each document   
+    col1, col2 = expand.columns([5,1])  
+    print(i, id, doc_name, st.session_state.doc_ids[i], st.session_state.doc_names[i], st.session_state.checkboxes[i])
+    col1.checkbox(key=id,                                                               
                     label=doc_name, 
                     value=st.session_state.checkboxes[i],
                     on_change=lambda value, i=i: st.session_state.checkboxes.__setitem__(i, not st.session_state.checkboxes[i]),
                     args=(i,))
-
+    
+    delete_button = col2.markdown(
+            f"""
+            <button class="delete-button" onclick="window.location.href='/?delete={i}'">✖</button>
+            """,
+            unsafe_allow_html=True
+        )                                                  # Creates a button to delete a single document
+    # if delete_button:                                                    # Creates a button to delete a single document
+    #     st.session_state.checkboxes.pop(i)
+    #     st.session_state.doc_names.pop(i)
+    #     st.experimental_rerun()
 ##### If a new file is uploaded, or when app refreshes + uploaded file exists: #####    
 if uploaded_files:                                                               #TODO: this part requires testing to make sure it's not running unnecessarily or should run when needed                                  
     new_file_hash = get_file_hash(uploaded_files[-1])                           
     
-    if new_file_hash in st.session_state.unique_doc_ids:                         # For duplicated file, checked against VectorDB         
+    if new_file_hash in st.session_state.doc_ids:                         # For duplicated file, checked against VectorDB         
         print("Duplicated upload detected. Skipping the processing.",'\n')       # skip all processing 
         pass
     else:                                   
