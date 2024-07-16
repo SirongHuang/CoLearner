@@ -2,7 +2,7 @@ import os
 from re import split
 import streamlit as st
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_huggingface.embeddings import HuggingFaceEmbeddings
+from langchain_openai import OpenAIEmbeddings
 from langchain_chroma import Chroma
 import chromadb
 from colearner.utils import runtime
@@ -30,7 +30,7 @@ def configure_retriever(docs:list = [], doc_hash:str = "", update:bool = False):
     print("======= Configuring vectorDB =======")
     
     start_time = time.time()
-    embedding_function = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+    embedding_function = OpenAIEmbeddings(model="text-embedding-3-large")
     elapsed_time = time.time() - start_time
     print(f"Elapsed time for embedding_function: {elapsed_time} seconds")
     
