@@ -72,7 +72,8 @@ with st.sidebar.form("my-form", clear_on_submit=True):
 # ------------------------ sidebar UI ------------------------
 
 expand = st.sidebar.expander("Manage Documents",                            
-                                icon=":material/folder_open:") 
+                                icon=":material/folder_open:",
+                                expanded=True) 
 expand.write("Select the documents you want to chat with.")
     
     
@@ -109,7 +110,7 @@ def delete_document(delete_index):
 
 # -------------- create checkboxes on app restart from vectorDB docs --------------
 
-checkbox_col1, checkbox_col2 = expand.columns([5,1])  
+checkbox_col1, checkbox_col2 = expand.columns([0.8,0.2], vertical_alignment='top')  
 
 # Loop through all the documents in the vectorDB and create a checkbox for each
 for i, (id, doc_name) in enumerate(zip(st.session_state.doc_ids, st.session_state.doc_names)):           
@@ -119,7 +120,7 @@ for i, (id, doc_name) in enumerate(zip(st.session_state.doc_ids, st.session_stat
                         value=st.session_state.checkboxes[i])
 
         # create a delete button for each checkbox
-        if checkbox_col2.button("✖", key=f"delete_{i}"):                                                                                                       
+        if checkbox_col2.button("✖", key=f"delete_{i}", type='primary'):                                                                                                       
             delete_document(i)
             st.rerun()    
 
@@ -129,9 +130,6 @@ for i, (id, doc_name) in enumerate(zip(st.session_state.doc_ids, st.session_stat
 #               New Uploaded File Processing
 #
 # ------------------------------------------------------------       
- 
-print("=======    Uploaded files  =======") 
-print(uploaded_files)       
             
 if uploaded_files:                                                                                               
     
@@ -179,7 +177,7 @@ if uploaded_files:
                 checkbox_col1.checkbox(key=new_file_hash,                                          # 5. update the checkbox UI                
                                     label=new_file_name, 
                                     value=True)          
-                if checkbox_col2.button("✖", key=f"delete_{k}"):                                                                          
+                if checkbox_col2.button("✖", key=f"delete_{k}", type='primary'):                                                                          
                     delete_document(i)
                     st.rerun()                                          
                                               
