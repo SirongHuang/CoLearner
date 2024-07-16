@@ -2,13 +2,13 @@
 
 import os
 import requests
-
+import random
 
 class NotionLoader:
     """
     A data class to represent a Notion page. Helps to collect data as progressing goes.
     """
-    def __init__(self, page_id: str = '', page_name: str = '', notion_api_key: str = '', save_path: str = ''):
+    def __init__(self, page_id: str = '', page_name: str = 'NotionPage_'+str(random.random()), notion_api_key: str = '', save_path: str = ''):
         self.page_id = page_id
         self.page_name = page_name
         self.page_text = []
