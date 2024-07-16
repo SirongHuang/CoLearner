@@ -35,7 +35,7 @@ def configure_retriever(docs:list = [], doc_hash:str = "", update:bool = False):
     print(f"Elapsed time for embedding_function: {elapsed_time} seconds")
     
     start_time = time.time()
-    persistent_client = chromadb.PersistentClient(path=os.getenv('CHROMADB_PATH'))
+    persistent_client = chromadb.PersistentClient(path=os.getenv('DATA_DIR')+"/chromadb")
     elapsed_time = time.time() - start_time
     print(f"Elapsed time for persistent_client: {elapsed_time} seconds")
     

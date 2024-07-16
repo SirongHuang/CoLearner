@@ -14,7 +14,7 @@ class NotionLoader:
         self.page_text = []
         self.page_children = []
         self.notion_api_key = os.getenv("NOTION_API_KEY") if notion_api_key == '' else notion_api_key
-        self.save_path = os.getenv("NOTION_SAVE_PATH") if save_path == '' else save_path
+        self.save_path = os.getenv("DATA_DIR")+"/notion_data" if save_path == '' else save_path
         
     def get_block(self, block_id:str) -> dict:
         """
