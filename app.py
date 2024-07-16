@@ -9,6 +9,7 @@ from colearner.utils import create_folder, save_file, get_file_hash, all_items_e
 from colearner.pdf_loader import load_pdf 
 from colearner.rag import configure_retriever
 from colearner.chatbot import Context_with_History_Chatbot
+from colearner.unstructured_loader import load_unstructured_file   
 
 
 debug = True
@@ -167,8 +168,11 @@ if uploaded_files:
                 file_path = save_file_dir + new_file_name                               
                 save_file(file, file_path)                                                         # 1. save the file locally
 
-                new_pdf_doc = load_pdf(file_path)                                                  # 2. load the new PDF as langchain document    
-                                                                  
+                if file_path.endswith('.pdf'):                                                     # 2. load the new PDF as langchain document 
+                    new_pdf_doc = load_pdf(file_path)     
+                else:                                            
+                    new_pdf_doc = load_unstructured_file(file_path)                                #TODO: slow for loading single file, change logic to multi-file
+                                          
                 try:
                     st.session_state.retriever = configure_retriever(                              # 3. update the ChromaDB and retriever 
                                                         doc_hash = new_file_hash,                 
