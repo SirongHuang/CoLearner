@@ -3,6 +3,7 @@ import re
 import random
 from dotenv import load_dotenv
 load_dotenv()
+from posthog import page
 import streamlit as st
 from colearner import chatbot
 from colearner.utils import create_folder, save_file, get_file_hash, all_items_exist
@@ -10,7 +11,7 @@ from colearner.pdf_loader import load_pdf
 from colearner.rag import configure_retriever
 from colearner.chatbot import Context_with_History_Chatbot
 from colearner.unstructured_loader import load_unstructured_file   
-
+from colearner.notion_loader import NotionLoader
 
 debug = True
 if debug:
@@ -76,19 +77,30 @@ def delete_document(delete_index):
     st.session_state.doc_names.pop(delete_index)
 
 
-# ---------------------- file uploader ----------------------
+# --------------- file uploader: local files ---------------
                                                            
 with st.sidebar.form("my-form", clear_on_submit=True):
     uploaded_files = st.file_uploader("📃File Uploader",  
                                        key=st.session_state.file_uploader_key, accept_multiple_files=True)
-    st.write("Accepted formats: PDF, microsoft docs, images, txt, csv, html, epub...")
+    st.write("Formats: PDF, microsoft docs, images, audio, txt, csv, xls, json, html, epub...")
     submitted = st.form_submit_button("Upload")
     
     print("===========   Session states:   ===========")    
     for key, value in st.session_state.items():
         print(key, ":", value)
-        
-        
+
+
+# ---------------- file uploader: notion API ----------------
+
+expand = st.sidebar.expander("📚 Notion",                            
+                                expanded=False) 
+if notion_id := st.sidebar.text_input("Notion Page ID"):
+    if notion_name := st.sidebar.text_input("Write a name for the page"):
+        page = NotionLoader(page_id=notion_id, page_name=notion_name)
+    else:
+        page = NotionLoader(page_id=notion_id)
+    page.recursive_text_search(id = page.page_id, parent = page.page_name, write_to_file=True)
+      
 # ------------------------------------------------------------
 #
 #                    Document management UI
@@ -149,7 +161,7 @@ for i, (id, doc_name) in enumerate(zip(st.session_state.doc_ids, st.session_stat
             
 if uploaded_files:                                                                                               
     
-    save_file_dir = os.getenv('DATA_FOLDER_PATH') + "uploaded_files/pdf/"
+    save_file_dir = os.getenv('DATA_DIR') + "uploaded_files/pdf/"
     create_folder(save_file_dir)  
     
     new_file_hashes = [get_file_hash(file) for file in uploaded_files]     
