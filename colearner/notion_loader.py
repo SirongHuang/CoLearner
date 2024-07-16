@@ -1,22 +1,71 @@
-""" Dedicated module for loading data from Notion API. """
+""" Dedicated module for loading data from Notion API. Inspired by langchain_community.document_loaders.notiondb.py """
 
 import os
 import requests
 import random
+from typing import Any, Dict, List
+from langchain_core.documents import Document
+from langchain_community.document_loaders.base import BaseLoader
+import ast
+from typing import List, Dict, Any
+from itertools import groupby
+from operator import itemgetter
+from collections import defaultdict
 
-class NotionLoader:
+#TODO: return Document object instead of dict
+
+class NotionLoader(BaseLoader):
     """
     A data class to represent a Notion page. Helps to collect data as progressing goes.
     """
-    def __init__(self, page_id: str = '', page_name: str = 'NotionPage_'+str(random.random()), notion_api_key: str = '', save_path: str = ''):
+    
+    def __init__(self, 
+        page_id: str = '', 
+        page_name: str = 'NotionPage__id_'+str(random.random()), # if page_name is not provided, generate a random name
+        notion_api_key: str = '', 
+        save_path: str = ''
+    ) -> None:
+        
+        if not page_id:
+            raise ValueError("database_id must be provided")
+        
         self.page_id = page_id
         self.page_name = page_name
         self.page_text = []
         self.page_children = []
         self.notion_api_key = os.getenv("NOTION_API_KEY") if notion_api_key == '' else notion_api_key
         self.save_path = os.getenv("DATA_DIR")+"/notion_data" if save_path == '' else save_path
+    
+    
+    def load(self, write_to_file:bool =True) -> List[Document]:
+        """ Load data from Notion API. """
         
-    def get_block(self, block_id:str) -> dict:
+        file_path = self.save_path+'/'+self.page_name+'.txt'
+        
+        # recursively search for all texts in the page, and write to a file
+        self._recursive_text_search(id = self.page_id, parent = self.page_name, write_to_file=write_to_file)
+        
+        # load the data from the file into list of dictionaries
+        data = self._read_notion_loader_output(file_path)
+        
+        # group the data by parent key
+        grouped_data = self._group_by_key_groupby(data, 'parent')
+        
+        # create a list of Document objects from the list of dictionaries
+        docs = []
+        for group in grouped_data:
+            subgroup_text = ""
+            subgroup = grouped_data[group]
+            for item in subgroup:
+                if item['type'] != 'child_page':
+                    subgroup_text += item['text'] + "\n"
+            doc = Document(page_content=subgroup_text, metadata={"source": file_path, "page_name": group})
+            docs.append(doc)
+        
+        return docs
+        
+        
+    def _get_block(self, block_id:str) -> List[Dict[str, Any]]:
         """
         Get the response from the Notion API for a given block_id.
         
@@ -42,7 +91,7 @@ class NotionLoader:
             raise Exception(f"Error: {response.status_code}\nError message: {response.text}")
         
         
-    def get_plain_text_from_block(self, block:dict) -> str:
+    def _get_plain_text_from_block(self, block:List[Dict[str, Any]]) -> str:
         """
         Extract plain text from objects that contains text.
         Supported objects: paragraph, heading_1, heading_2, heading_3, bulleted_list_item, 
@@ -63,7 +112,6 @@ class NotionLoader:
                                         'bulleted_list_item', 'numbered_list_item', 
                                         'to_do', 'toggle','quote','code','embed']
         
-
         try:                                                      # If the block does not have a type key, return an empty string
             block_type = block['type']
         except KeyError:
@@ -89,12 +137,13 @@ class NotionLoader:
             return ''
         
         
-    def append_new_data_to_file(self, file_path:str, data_list:list) -> None: 
+    def _append_new_data_to_file(self, file_path:str, data_list:List[Dict[str, Any]]) -> None: 
         """
         Appends items from data_list to the file specified by file_path,
         ensuring that only new items (not already in the file) are appended.
         Each new item is written on a new line.
         """
+        
         if not os.path.exists(file_path):
             with open(file_path, 'w', encoding='utf-8') as file:
                 file.write('')
@@ -111,25 +160,26 @@ class NotionLoader:
                     file.write(f"{item}\n")  # Step 4
         
         
-    def append_new_data_to_file_notion(self, base_page:str, data_list:list) -> None:
+    def _append_new_data_to_file_notion(self, base_page:str, data_list:List[Dict[str, Any]]) -> None:
         """Append new data to a file with the name of the base page in Notion data folder. """
         
         os.makedirs(self.save_path, exist_ok=True)    
-        self.append_new_data_to_file(file_path=f'{self.save_path}/{base_page}.txt', data_list=data_list)
-
-
-    def recursive_text_search(self, id:str, parent='base', 
+        self._append_new_data_to_file(file_path=f'{self.save_path}/{base_page}.txt', data_list=data_list)
+    
+    
+    def _recursive_text_search(self, id:str, parent='base', 
                             debug=False, write_to_file=False) -> tuple:
         """
-        Search for texts recursively from given a page_id or database_id. 
+        Search for texts recursively from given a page_id or database_id.
+        Write the output to a file if write_to_file is True.
         """
         
-        base_blocks = self.get_block(id)['results'] # list of dicts (nested blocks)
+        base_blocks = self._get_block(id)['results'] # list of dicts (nested blocks)
         
         # first search text in base blocks
         for block in base_blocks:
                 
-            text = self.get_plain_text_from_block(block)
+            text = self._get_plain_text_from_block(block)
             
             # if the block contains text, append it to the output collection
             if text != '' and text != None:
@@ -140,7 +190,7 @@ class NotionLoader:
                     print(text_output)
                 
                 if write_to_file:
-                    self.append_new_data_to_file_notion(self.page_name, self.page_text)
+                    self._append_new_data_to_file_notion(self.page_name, self.page_text)
         
         # then do recursive search for children pages 
         for block in base_blocks:
@@ -159,15 +209,51 @@ class NotionLoader:
                     print(parent)
                 
                 if write_to_file:
-                    self.append_new_data_to_file_notion(self.page_name, self.page_text)
+                    self._append_new_data_to_file_notion(self.page_name, self.page_text)
 
             if block["has_children"]:
-                self.recursive_text_search(id = block["id"], parent = parent, 
+                self._recursive_text_search(id = block["id"], parent = parent, 
                                         debug = debug, write_to_file = write_to_file)
                 
         return parent
 
 
+    def _read_notion_loader_output(self, file_path) -> List[Dict[str, Any]]:
+        """ Read data from notion_loader output file and return a list of dictionaries. """
+        
+        data = []
+        with open(file_path,'r', encoding='utf-8') as f: 
+            for line in f:
+                dict_data = ast.literal_eval(line.strip()) 
+                data.append(dict_data)             
+        return data
 
+
+    def _group_by_key_groupby(self, data:List[Dict[str, Any]], key:str) -> Dict[str, List[Dict[str, Any]]]:
+        """
+        Group a list of dictionaries by a specific key using itertools.groupby.
+        
+        Args:
+        data (list): List of dictionaries to group.
+        key (str): The key to group by.
+        
+        Returns:
+        dict: A dictionary where keys are the grouped values and values are lists of dictionaries.
+        """
+        
+        sorted_data = sorted(data, key=itemgetter(key))
+        
+        return {k: list(v) for k, v in groupby(sorted_data, key=itemgetter(key))}
     
-    
+    def _create_langchain_document(self, grouped_data:Dict[str, List[Dict[str, Any]]]) -> List[Document]:
+        """ Create a list of Document objects from the list of dictionaries. """
+        
+        # concatonate all the text in the same page
+        docs = []
+        for group in grouped_data:
+            subgroup = grouped_data[group]
+            for item in subgroup:
+                if item['type'] != 'child_page':
+                    pprint(item)
+        
+        return docs
