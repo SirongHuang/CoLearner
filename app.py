@@ -1,11 +1,11 @@
-from distutils.command import upload
 import os
 import re
+import random
 from dotenv import load_dotenv
 load_dotenv()
 import streamlit as st
 from colearner import chatbot
-from colearner.utils import create_folder, save_file, get_file_hash
+from colearner.utils import create_folder, save_file, get_file_hash, all_items_exist
 from colearner.pdf_loader import load_pdf 
 from colearner.rag import configure_retriever
 from colearner.chatbot import Context_with_History_Chatbot
@@ -33,10 +33,10 @@ with open("style.css") as f:
 # ---------------------- session states ----------------------
 
 if "retriever" not in st.session_state:                                          
-    print("=======   Retriever configured after restarting app   =======", '\n') 
+    print("=======   ...Configuring retriever after app restart...   =======", '\n') 
     st.session_state.retriever = configure_retriever(update=False)              
-           
-# raw doc ids from the vectorstore, e.g., 'hash-0', 'hash-1', 'hash-2'                          
+
+# raw doc ids from the vectorstore, e.g., 'hash-0', 'hash-1', 'hash-2'                                                      #TODO: is session state the best way to store these values?
 st.session_state.doc_ids = list(set([id.split('-')[0] for id in st.session_state.retriever.vectorstore.get()['ids']]))
 
 # doc names from the vectorstore, duplication due to multiple docs of the same document                             
@@ -46,21 +46,30 @@ st.session_state.doc_names = [st.session_state.retriever.vectorstore.get(id+'-0'
 if 'checkboxes' not in st.session_state:
     st.session_state.checkboxes = [True] * len(st.session_state.doc_ids)
 
+if 'file_uploader_key' not in st.session_state:
+    st.session_state.file_uploader_key = 'default'
+
+def reset_file_uploader():
+    """ Resets the file uploader key to force uploaded_files to be cleared. """
+    st.session_state.file_uploader_key = str(st.session_state.file_uploader_key) + str(random.random())    
+
 
 # ---------------------- file uploader ----------------------
                                                            
 with st.sidebar.form("my-form", clear_on_submit=True):
-    uploaded_files = st.file_uploader("FILE UPLOADER",  accept_multiple_files=True)
+    uploaded_files = st.file_uploader("FILE UPLOADER", key=st.session_state.file_uploader_key, accept_multiple_files=True)
     submitted = st.form_submit_button("Upload")
-
+    
+    print("===========   Session states:   ===========")    
+    for key, value in st.session_state.items():
+        print(key, ":", value)
 # ------------------------------------------------------------
 #
 #                    Document management UI
 #
 # ------------------------------------------------------------                                                                
 
-
-# ------------------------- sidebar -------------------------
+# ------------------------ sidebar UI ------------------------
 
 expand = st.sidebar.expander("Manage Documents",                            
                                 icon=":material/folder_open:") 
@@ -104,15 +113,15 @@ checkbox_col1, checkbox_col2 = expand.columns([5,1])
 
 # Loop through all the documents in the vectorDB and create a checkbox for each
 for i, (id, doc_name) in enumerate(zip(st.session_state.doc_ids, st.session_state.doc_names)):           
-    print(i, id, doc_name, st.session_state.doc_ids[i], st.session_state.doc_names[i], st.session_state.checkboxes[i])
-    checkbox_col1.checkbox(key=id,                                                               
-                    label=doc_name, 
-                    value=st.session_state.checkboxes[i])
+    if len(st.session_state.checkboxes) > 0:
+        checkbox_col1.checkbox(key=id,                                                               
+                        label=doc_name, 
+                        value=st.session_state.checkboxes[i])
 
-    # create a delete button for each checkbox
-    if checkbox_col2.button("✖", key=f"delete_{i}"):                                                                                                       
-        delete_document(i)
-        st.rerun()    
+        # create a delete button for each checkbox
+        if checkbox_col2.button("✖", key=f"delete_{i}"):                                                                                                       
+            delete_document(i)
+            st.rerun()    
 
         
 # ------------------------------------------------------------
@@ -120,55 +129,60 @@ for i, (id, doc_name) in enumerate(zip(st.session_state.doc_ids, st.session_stat
 #               New Uploaded File Processing
 #
 # ------------------------------------------------------------       
-
+ 
+print("=======    Uploaded files  =======") 
+print(uploaded_files)       
+            
 if uploaded_files:                                                                                               
     
     save_file_dir = os.getenv('DATA_FOLDER_PATH') + "uploaded_files/pdf/"
     create_folder(save_file_dir)  
     
-    new_file_hash = get_file_hash(uploaded_files[-1])     
-    new_file_name = uploaded_files[-1].name           
+    new_file_hashes = [get_file_hash(file) for file in uploaded_files]     
+    new_file_names = [file.name for file in uploaded_files]      
+    reset_file_uploader()                                                              # Reset the file uploader to avoid reprocessing 
     
-    if new_file_hash in st.session_state.doc_ids:                                # For duplicated file, checked against VectorDB         
-        print("Duplicated upload detected. Skipping the processing.",'\n')           # skip all processing 
+    if all_items_exist(new_file_hashes, st.session_state.doc_ids):                     # If none of the uploaded files are new, skip all processing         
+        print("Duplicated upload detected. Skipping the processing.",'\n')           
     
-    else:                                   
-        print("Uploaded file not in VectorDB. Processing...",'\n')               # For non-duplicated new file, process it as follows:    
-        file_path = save_file_dir + new_file_name
-        save_file(uploaded_files[-1], file_path)                                      # 1. save the file locally
+    else:                                                                              # For non-duplicated new file, process it as follows: 
+        print("Some of the uploaded files are not in VectorDB. Processing...",'\n')        
+                                                               
+                                                                                      
+        for file, new_file_hash, new_file_name in zip(uploaded_files, new_file_hashes, new_file_names):    
+            if new_file_hash not in st.session_state.doc_ids:                          # If the new file is already in the vectorDB, skip it               
+                file_path = save_file_dir + new_file_name                               
+                save_file(file, file_path)                                                         # 1. save the file locally
 
-        new_pdf_doc = load_pdf(file_path)                                             # 2. load the new PDF as langchain document    
-        
-        if debug == True:
-            print("=======    ID & Name of the new file   =======")
-            print(new_file_hash,'\n', new_file_name, '\n')
-            print("=======    Docs   =======")
-            print("Total number of documents in the PDF: ", len(new_pdf_doc))
-            print("Here is part of the content of first doc: ", '\n')
-            print(new_pdf_doc[0].page_content[50:], '\n')    
-                                                           
-        try:
-            st.session_state.retriever = configure_retriever(                         # 3. update the ChromaDB and retriever 
-                                                doc_hash = new_file_hash,                 
-                                                docs = new_pdf_doc, 
-                                                update=True)
-        except Exception as e:
-            print("Error occurred when updating the retriever with the new PDF.")
-            print(e)                                                                       
-               
-        st.session_state.doc_ids.append(new_file_hash)                                # 4. update the session states                    
-        st.session_state.checkboxes.append(True)
-        st.session_state.doc_names.append(new_file_name)
+                new_pdf_doc = load_pdf(file_path)                                                  # 2. load the new PDF as langchain document    
+                                                                  
+                try:
+                    st.session_state.retriever = configure_retriever(                              # 3. update the ChromaDB and retriever 
+                                                        doc_hash = new_file_hash,                 
+                                                        docs = new_pdf_doc, 
+                                                        update=True)
+                except Exception as e:
+                    print("Error occurred when updating the retriever with the new PDF.")
+                    print(e)                                                                       
+                    
+                st.session_state.doc_ids.append(new_file_hash)                                     # 4. update the session states                    
+                st.session_state.checkboxes.append(True)
+                st.session_state.doc_names.append(new_file_name)
                 
-        k = len(st.session_state.checkboxes)                        
-        print(f"Created the {k}th checkbox.")
-        checkbox_col1.checkbox(key=new_file_hash,                                     # 5. update the checkbox UI                
-                               label=new_file_name, 
-                               value=True)          
-        if checkbox_col2.button("✖", key=f"delete_{k}"):                                                                          
-            delete_document(i)
-            st.rerun()                                          
-                                            
+                print("=======    Updating checkbox UI   =======")
+                print(f"There are {len(st.session_state.checkboxes)} checkboxes.")    
+                print("Their ids are: ", st.session_state.doc_ids)        
+                print("Their names are: ", st.session_state.doc_names)       
+                
+                k = len(st.session_state.checkboxes)                        
+                print(f"Created the new {k}th checkbox.")
+                checkbox_col1.checkbox(key=new_file_hash,                                          # 5. update the checkbox UI                
+                                    label=new_file_name, 
+                                    value=True)          
+                if checkbox_col2.button("✖", key=f"delete_{k}"):                                                                          
+                    delete_document(i)
+                    st.rerun()                                          
+                                              
 
 # ------------------------------------------------------------
 #
