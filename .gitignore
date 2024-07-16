@@ -172,3 +172,4 @@ data/
 mlruns/
 memory.db
 notebooks/scrapbook.ipynb
+playground.py
