@@ -1,7 +1,3 @@
-.stCheckbox {
-    position: relative;
-}
-
 [class="st-emotion-cache-bm8b7r ef3psqc13"]{
     background-color: transparent;
     border: none;
@@ -22,13 +18,11 @@
 [class="st-emotion-cache-bm8b7r ef3psqc13"]:focus {
     outline: none;
 } 
-.stHorizontalBlock {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0.5em 0;
-}
 
-.checkbox-row .checkbox-label {
-    flex-grow: 1;
+
+[class="st-emotion-cache-1af0cet e1nzilvr4"]>p{
+    font-size: 20px;
+    font-weight: 900;
+    margin: 0;
+    padding: 0;
 }

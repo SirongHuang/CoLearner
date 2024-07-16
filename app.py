@@ -78,7 +78,9 @@ def delete_document(delete_index):
 # ---------------------- file uploader ----------------------
                                                            
 with st.sidebar.form("my-form", clear_on_submit=True):
-    uploaded_files = st.file_uploader("FILE UPLOADER", key=st.session_state.file_uploader_key, accept_multiple_files=True)
+    uploaded_files = st.file_uploader("📃File Uploader",  
+                                       key=st.session_state.file_uploader_key, accept_multiple_files=True)
+    st.write("Accepted formats: PDF, microsoft docs, images, txt, csv, html, epub...")
     submitted = st.form_submit_button("Upload")
     
     print("===========   Session states:   ===========")    
@@ -94,8 +96,7 @@ with st.sidebar.form("my-form", clear_on_submit=True):
 
 # ------------------------ sidebar UI ------------------------
 
-expand = st.sidebar.expander("Manage Documents",                            
-                                icon=":material/folder_open:",
+expand = st.sidebar.expander("📚 Manage Documents",                            
                                 expanded=True) 
 expand.write("Select the documents you want to chat with. ")
     
@@ -109,7 +110,6 @@ if button_col1.button('Deselect'):
 if button_col2.button('Select'):                                                                   
     st.session_state.checkboxes = [True] * len(st.session_state.checkboxes)
 if button_col3.button('Remove'):       
-        
     form = st.form(key='confirmation_box')
     name = form.text('❗❗❗ Are you sure you want to delete all docs?')
     submit = form.form_submit_button('Yes')
