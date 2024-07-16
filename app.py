@@ -49,44 +49,11 @@ if 'checkboxes' not in st.session_state:
 if 'file_uploader_key' not in st.session_state:
     st.session_state.file_uploader_key = 'default'
 
+# -------------- functions to manage session states -------------
+
 def reset_file_uploader():
     """ Resets the file uploader key to force uploaded_files to be cleared. """
     st.session_state.file_uploader_key = str(st.session_state.file_uploader_key) + str(random.random())    
-
-
-# ---------------------- file uploader ----------------------
-                                                           
-with st.sidebar.form("my-form", clear_on_submit=True):
-    uploaded_files = st.file_uploader("FILE UPLOADER", key=st.session_state.file_uploader_key, accept_multiple_files=True)
-    submitted = st.form_submit_button("Upload")
-    
-    print("===========   Session states:   ===========")    
-    for key, value in st.session_state.items():
-        print(key, ":", value)
-# ------------------------------------------------------------
-#
-#                    Document management UI
-#
-# ------------------------------------------------------------                                                                
-
-# ------------------------ sidebar UI ------------------------
-
-expand = st.sidebar.expander("Manage Documents",                            
-                                icon=":material/folder_open:",
-                                expanded=True) 
-expand.write("Select the documents you want to chat with.")
-    
-    
-# -------------- buttons to manage all checkboxes --------------    
-    
-button_col1, button_col2 = expand.columns(2)
-if button_col1.button('Deselect all'):                                                                  
-    st.session_state.checkboxes = [False] * len(st.session_state.checkboxes)
-if button_col2.button('Select all'):                                                                   
-    st.session_state.checkboxes = [True] * len(st.session_state.checkboxes)
-
-
-# -------------- function to delete single checkbox --------------
 
 def delete_document(delete_index):
     """ Deletes the document from the vectorDB and updates the UI. """                                                              
@@ -106,6 +73,54 @@ def delete_document(delete_index):
     st.session_state.doc_ids.pop(delete_index)
     st.session_state.checkboxes.pop(delete_index)
     st.session_state.doc_names.pop(delete_index)
+
+
+# ---------------------- file uploader ----------------------
+                                                           
+with st.sidebar.form("my-form", clear_on_submit=True):
+    uploaded_files = st.file_uploader("FILE UPLOADER", key=st.session_state.file_uploader_key, accept_multiple_files=True)
+    submitted = st.form_submit_button("Upload")
+    
+    print("===========   Session states:   ===========")    
+    for key, value in st.session_state.items():
+        print(key, ":", value)
+        
+        
+# ------------------------------------------------------------
+#
+#                    Document management UI
+#
+# ------------------------------------------------------------                                                                
+
+# ------------------------ sidebar UI ------------------------
+
+expand = st.sidebar.expander("Manage Documents",                            
+                                icon=":material/folder_open:",
+                                expanded=True) 
+expand.write("Select the documents you want to chat with. ")
+    
+    
+# -------------- buttons to manage all checkboxes --------------    
+
+button_col1, button_col2, button_col3 = expand.columns(3)
+
+if button_col1.button('Deselect'):                                                                  
+    st.session_state.checkboxes = [False] * len(st.session_state.checkboxes)
+if button_col2.button('Select'):                                                                   
+    st.session_state.checkboxes = [True] * len(st.session_state.checkboxes)
+if button_col3.button('Remove'):       
+        
+    form = st.form(key='confirmation_box')
+    name = form.text('❗❗❗ Are you sure you want to delete all docs?')
+    submit = form.form_submit_button('Yes')
+    if submit:                                            
+        st.session_state.checkboxes = [True] * len(st.session_state.checkboxes)
+        try:
+            for i in range(len(st.session_state.doc_ids)+1):
+                delete_document(i)
+        except:
+            pass
+        st.rerun()    
 
 
 # -------------- create checkboxes on app restart from vectorDB docs --------------
