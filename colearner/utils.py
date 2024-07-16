@@ -32,4 +32,8 @@ def get_file_hash(file):
     file.seek(0)  # Reset file pointer to beginning
     return hashlib.md5(content).hexdigest()
 
-
+def all_items_exist(list_a, list_b):
+    """Return True if all items in list_a exist in list_b, otherwise False."""
+    set_b = set(list_b)
+    
+    return all(item in set_b for item in list_a)
