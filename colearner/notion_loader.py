@@ -62,14 +62,13 @@ class NotionLoader(BaseLoader):
         # Extract the page title from the response
         if response.status_code == 200:
             page_data = response.json()
-            page_name = page_data["properties"]["title"]["title"][0]["plain_text"]
-            return page_name
+            self.page_name = page_data["properties"]["title"]["title"][0]["plain_text"]
+            return self.page_name
         else:
             print(f"Error occurred when extracting page name: {response.status_code}\nError message: {response.text}")
             self.page_name = 'NotionPage__id_'+str(random.random())
             print('Generating random page name: ', self.page_name)
-        
-        return self.page_name
+            return self.page_name
     
     
     def load(self, write_to_file:bool =True) -> List[Document]:
