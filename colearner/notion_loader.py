@@ -1,6 +1,7 @@
 """ Dedicated module for loading data from Notion API. Inspired by langchain_community.document_loaders.notiondb.py """
 
 import os
+import re
 import requests
 import random
 from typing import Any, Dict, List
@@ -10,9 +11,7 @@ import ast
 from typing import List, Dict, Any
 from itertools import groupby
 from operator import itemgetter
-from collections import defaultdict
 
-#TODO: return Document object instead of dict
 
 class NotionLoader(BaseLoader):
     """
@@ -20,21 +19,57 @@ class NotionLoader(BaseLoader):
     """
     
     def __init__(self, 
-        page_id: str = '', 
-        page_name: str = 'NotionPage__id_'+str(random.random()), # if page_name is not provided, generate a random name
+        page_url: str = '',
         notion_api_key: str = '', 
         save_path: str = ''
     ) -> None:
         
-        if not page_id:
-            raise ValueError("database_id must be provided")
+        if not page_url:
+            raise ValueError("Share link must be provided")
         
-        self.page_id = page_id
-        self.page_name = page_name
+        self.page_url = page_url
+        self.page_id = self._extract_page_id_from_url(self.page_url)
+        self.page_name = self._extract_page_name_from_page_id(self.page_id) #TODO: check if this will generate a random name each time app restarts if the page name is not retrievable
         self.page_text = []
         self.page_children = []
         self.notion_api_key = os.getenv("NOTION_API_KEY") if notion_api_key == '' else notion_api_key
         self.save_path = os.getenv("DATA_DIR")+"/notion_data" if save_path == '' else save_path
+    
+    
+    def _extract_page_id_from_url(self, url:str) -> str:
+        """ Extract the page_id from the Notion page share link URL. """
+        
+        pattern = r"[\?\/\-=]([A-Za-z0-9]+)[?&]pvs=4"
+        if match := re.search(pattern, url):
+            self.page_id = match.group(1)
+        else: 
+            raise ValueError("Invalid URL. Please provide a valid Notion page URL.")
+        return self.page_id
+    
+    
+    def _extract_page_name_from_page_id(self, page_id) -> str:
+        """ Extract the page name from the page_id from Notion API. """
+        
+        url = f"https://api.notion.com/v1/pages/{self.page_id}"
+        headers = {
+            "Authorization": f"Bearer {os.getenv('NOTION_API_KEY')}",
+            "Notion-Version": "2022-06-28"  # Use the latest API version
+        }
+
+        # Make the API request
+        response = requests.get(url, headers=headers)
+       
+        # Extract the page title from the response
+        if response.status_code == 200:
+            page_data = response.json()
+            page_name = page_data["properties"]["title"]["title"][0]["plain_text"]
+            return page_name
+        else:
+            print(f"Error occurred when extracting page name: {response.status_code}\nError message: {response.text}")
+            self.page_name = 'NotionPage__id_'+str(random.random())
+            print('Generating random page name: ', self.page_name)
+        
+        return self.page_name
     
     
     def load(self, write_to_file:bool =True) -> List[Document]:
@@ -245,15 +280,3 @@ class NotionLoader(BaseLoader):
         
         return {k: list(v) for k, v in groupby(sorted_data, key=itemgetter(key))}
     
-    def _create_langchain_document(self, grouped_data:Dict[str, List[Dict[str, Any]]]) -> List[Document]:
-        """ Create a list of Document objects from the list of dictionaries. """
-        
-        # concatonate all the text in the same page
-        docs = []
-        for group in grouped_data:
-            subgroup = grouped_data[group]
-            for item in subgroup:
-                if item['type'] != 'child_page':
-                    pprint(item)
-        
-        return docs
