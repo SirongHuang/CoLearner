@@ -33,7 +33,7 @@ class NotionLoader(BaseLoader):
         self.page_text = []
         self.page_children = []
         self.notion_api_key = os.getenv("NOTION_API_KEY") if notion_api_key == '' else notion_api_key
-        self.save_path = os.getenv("DATA_DIR")+"/notion_data" if save_path == '' else save_path
+        self.save_path = os.getenv("DATA_DIR")+"/notion" if save_path == '' else save_path
     
     
     def _extract_page_id_from_url(self, url:str) -> str:
