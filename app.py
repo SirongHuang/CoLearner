@@ -50,6 +50,9 @@ if 'checkboxes' not in st.session_state:
 
 if 'file_uploader_key' not in st.session_state:
     st.session_state.file_uploader_key = 'default'
+    
+if 'notion_data_uploaded' not in st.session_state:
+    st.session_state.notion_data_uploaded = False
 
 # -------------- functions to manage session states -------------
 
@@ -77,6 +80,12 @@ def delete_document(delete_index):
     st.session_state.doc_names.pop(delete_index)
 
 
+# ------------------------------------------------------------
+#
+#                      File Uploader UI 
+#
+# ------------------------------------------------------------
+
 # --------------- file uploader: local files ---------------
                                                            
 with st.sidebar.form("my-form", clear_on_submit=True):
@@ -92,14 +101,12 @@ with st.sidebar.form("my-form", clear_on_submit=True):
 
 # ---------------- file uploader: notion API ----------------
 
-expand = st.sidebar.expander("📚 Notion",                            
+expand = st.sidebar.expander("📖 Notion",                            
                                 expanded=False) 
-if notion_id := st.sidebar.text_input("Notion Page ID"):
-    if notion_name := st.sidebar.text_input("Write a name for the page"):
-        page = NotionLoader(page_id=notion_id, page_name=notion_name)
-    else:
-        page = NotionLoader(page_id=notion_id)
-    page.recursive_text_search(id = page.page_id, parent = page.page_name, write_to_file=True)
+if notion_id := expand.text_input("Notion share link (e.g., https://www.notion.so/...)", key='notion_id'):
+    loader = NotionLoader(page_url=notion_id)
+    st.session_state.notion_data_uploaded = True
+    
       
 # ------------------------------------------------------------
 #
@@ -155,12 +162,14 @@ for i, (id, doc_name) in enumerate(zip(st.session_state.doc_ids, st.session_stat
         
 # ------------------------------------------------------------
 #
-#               New Uploaded File Processing
+#                    New File Processing
 #
 # ------------------------------------------------------------       
-            
-if uploaded_files:                                                                                               
-    
+         
+# ---------------------- Uploaded files -----------------------
+   
+if uploaded_files:                                                                                             
+    # based on the file type, save the file and update the retriever
     save_file_dir = os.getenv('DATA_DIR') + "uploaded_files/pdf/"
     create_folder(save_file_dir)  
     
@@ -210,7 +219,45 @@ if uploaded_files:
                                     value=True)          
                 if checkbox_col2.button("✖", key=f"delete_{k}", type='primary'):                                                                          
                     delete_document(i)
-                    st.rerun()                                          
+                    st.rerun()                                         
+                    
+# ----------------------- Notion API ------------------------
+                    
+if st.session_state.notion_data_uploaded:
+    new_file_hash = loader.page_id
+    new_file_name = loader.page_id+'.txt'
+    
+    if new_file_hash in st.session_state.doc_ids:                                # If the new file is already in the vectorDB, skip it
+        print("Duplicated notion document detected. Skipping the processing.",'\n')
+    else:                         
+        new_pdf_doc = loader.load()                                                        # 2. load the new PDF as langchain document 
+        print(new_pdf_doc)
+        try:
+            st.session_state.retriever = configure_retriever(                              # 3. update the ChromaDB and retriever 
+                                                doc_hash = new_file_hash,                 
+                                                docs = new_pdf_doc, 
+                                                update=True)
+        except Exception as e:
+            print("Error occurred when updating the retriever with the new PDF.")
+            print(e)                                                                       
+            
+        st.session_state.doc_ids.append(new_file_hash)                                     # 4. update the session states                    
+        st.session_state.checkboxes.append(True)
+        st.session_state.doc_names.append(new_file_name)
+        
+        print("=======    Updating checkbox UI   =======")
+        print(f"There are {len(st.session_state.checkboxes)} checkboxes.")    
+        print("Their ids are: ", st.session_state.doc_ids)        
+        print("Their names are: ", st.session_state.doc_names)       
+        
+        k = len(st.session_state.checkboxes)                        
+        print(f"Created the new {k}th checkbox.")
+        checkbox_col1.checkbox(key=new_file_hash,                                          # 5. update the checkbox UI                
+                            label=new_file_name, 
+                            value=True)          
+        if checkbox_col2.button("✖", key=f"delete_{k}", type='primary'):                                                                          
+            delete_document(i)
+            st.rerun()    
                                               
 
 # ------------------------------------------------------------
