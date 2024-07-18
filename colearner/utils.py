@@ -37,3 +37,15 @@ def all_items_exist(list_a, list_b):
     set_b = set(list_b)
     
     return all(item in set_b for item in list_a)
+
+def get_non_duplicated_items(A, B):
+    """
+    For all items in list A that do not exist in list B, return the items and their indices.
+    """
+    sublist = []
+    indices = []
+    for index, item in enumerate(A):
+        if item not in B:
+            sublist.append(item)
+            indices.append(index)
+    return sublist, indices
