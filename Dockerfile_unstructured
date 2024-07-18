@@ -4,6 +4,7 @@ WORKDIR /app
 
 # dependency 
 RUN pip install unstructured
+RUN pip install docker
 
 # we'll mount the local directory to /app when running the container for now so no need to copy over files
 # COPY . /app
