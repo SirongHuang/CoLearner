@@ -2,7 +2,40 @@ from langchain_community.document_loaders import UnstructuredFileLoader
 from langchain_core.documents import Document
 from typing import List
 import sys
+import docker
 
+
+def run_unstructured_loader_in_container(tmp_file_name):
+    """
+    Run the UnstructuredFileLoader inside a Docker container built 
+        from official Unstructured docker with additional 'pip install unstructured' command.
+    """
+    
+    client = docker.from_env()
+    
+    container = client.containers.run(
+        "unstructured_installed:0.1",
+        command=f"python3 ./colearner/unstructured_loader_docker.py {tmp_file_name}",
+        volumes={
+            "d:/Work/CoLearner/": {
+                "bind": "/app",
+                "mode": "ro"
+            }
+        },
+        working_dir="/app",
+        stderr=True,
+        stdout=True,
+        detach=True
+    )
+    
+    container.wait()
+    
+    for line in container.logs(stream=True):
+        print(line.strip().decode())
+        
+    container.remove()
+    
+    
 def aggregate_documents(docs: List[Document]) -> List[Document]:
     """
     Aggregate document contents by filename and page number.
@@ -31,7 +64,7 @@ def aggregate_documents(docs: List[Document]) -> List[Document]:
             prev_page_number = current_page_number
             page_contents = [doc.page_content]
 
-        page_contents.append(doc.page_content)
+        page_contents.append(doc.page_content) #BUG: first sentence of next page is appended to the last sentence of the previous page...
         
         # aggregate file content when a new file or page starts, or at the end of the list (for the last doc)
         if current_page_number != prev_page_number or current_file_name != prev_file_name or i == len(docs)-1:
@@ -48,7 +81,6 @@ def aggregate_documents(docs: List[Document]) -> List[Document]:
             prev_file_name = current_file_name
             prev_page_number = current_page_number
             page_contents = []        
-
             
     return output
 
@@ -63,6 +95,7 @@ def load_unstructured_files(temp_file_name: str) -> List[Document]:
     Returns:
         list of langchain documents with metadata of page number and file name.
     """
+    
     with open('data/uploaded_files/tmp/' + temp_file_name, 'r') as f:           #TODO: change how path is defined
         filepaths = ['data/uploaded_files/'+line.replace('\n','') for line in f.readlines()]
     print("Accessing filepaths", filepaths)
